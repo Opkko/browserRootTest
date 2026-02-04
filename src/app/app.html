@@ -1,0 +1,50 @@
+<div style="font-family: Arial, sans-serif; padding: 16px; max-width: 920px;">
+  <h2>Runtime Tampering Risk Report</h2>
+
+  <div style="display: flex; gap: 16px; align-items: center; flex-wrap: wrap;">
+    <div style="font-size: 18px;">
+      <strong>Risk score:</strong> {{ riskScore }}/100
+    </div>
+    <button (click)="runAll()">Run again</button>
+    <div style="opacity: 0.85;">{{ summary }}</div>
+  </div>
+
+  <div style="margin-top: 12px; font-size: 13px; opacity: 0.9;">
+    <div><strong>UA:</strong> {{ environment.userAgent }}</div>
+    <div>
+      <strong>Platform:</strong> {{ environment.platform }} |
+      <strong>Lang:</strong> {{ environment.language }} |
+      <strong>HW threads:</strong> {{ environment.hardwareConcurrency }}
+    </div>
+  </div>
+
+  <table style="width: 100%; border-collapse: collapse; margin-top: 16px;">
+    <thead>
+      <tr>
+        <th style="text-align: left; border-bottom: 1px solid #ddd; padding: 8px;">Check</th>
+        <th style="text-align: left; border-bottom: 1px solid #ddd; padding: 8px; width: 90px;">Result</th>
+        <th style="text-align: left; border-bottom: 1px solid #ddd; padding: 8px; width: 80px;">Weight</th>
+        <th style="text-align: left; border-bottom: 1px solid #ddd; padding: 8px;">Details</th>
+      </tr>
+    </thead>
+
+    <tbody>
+      <tr *ngFor="let r of results; trackBy: trackByName">
+        <td style="border-bottom: 1px solid #f0f0f0; padding: 8px;">{{ r.name }}</td>
+        <td style="border-bottom: 1px solid #f0f0f0; padding: 8px;">
+          <span [style.color]="r.pass ? '#0a7a0a' : '#b00020'">
+            {{ r.pass ? 'PASS' : 'FAIL' }}
+          </span>
+        </td>
+        <td style="border-bottom: 1px solid #f0f0f0; padding: 8px;">{{ r.weight }}</td>
+        <td style="border-bottom: 1px solid #f0f0f0; padding: 8px;">
+          <pre style="margin: 0; white-space: pre-wrap; word-break: break-word;">{{ r.details | json }}</pre>
+        </td>
+      </tr>
+    </tbody>
+  </table>
+
+  <div style="margin-top: 12px; font-size: 12px; opacity: 0.85;">
+    This report is heuristic. It does not claim deterministic root detection; it flags signals consistent with runtime tampering/instrumentation.
+  </div>
+</div>
