@@ -42,6 +42,9 @@ export class App implements OnInit {
     checks.push(...this.nativeIntegrityChecks());
     checks.push(...this.descriptorChecks());
     checks.push(this.globalPollutionCheck());
+    checks.push(this.automationSignalsCheck());
+    checks.push(this.emulatorSignalsCheck());
+    checks.push(this.webglSignalsCheck());
     checks.push(this.timingJitterCheck());
     checks.push(await this.iframeConsistencyCheck());
     checks.push(await this.workerConsistencyCheck());
@@ -146,6 +149,72 @@ export class App implements OnInit {
       pass,
       weight: 8,
       details: hits.slice(0, 30),
+    };
+  }
+
+  private automationSignalsCheck(): CheckResult {
+    const webdriver = (navigator as any).webdriver === true;
+    const pass = !webdriver;
+    return {
+      name: 'Environment: automation / webdriver flag',
+      pass,
+      weight: 10,
+      details: { webdriver },
+    };
+  }
+
+  private emulatorSignalsCheck(): CheckResult {
+    const ua = navigator.userAgent ?? '';
+    const platform = (navigator as any).platform ?? '';
+    const haystack = `${ua} ${platform}`.toLowerCase();
+    const needles = [
+      'android sdk built for',
+      'emulator',
+      'sdk_gphone',
+      'goldfish',
+      'ranchu',
+      'genymotion',
+    ];
+    const hits = needles.filter((n) => haystack.includes(n));
+    const pass = hits.length === 0;
+    return {
+      name: 'Environment: emulator / virtual device signals',
+      pass,
+      weight: 8,
+      details: { hits },
+    };
+  }
+
+  private webglSignalsCheck(): CheckResult {
+    const info = this.getWebglInfo();
+    if (!info.available) {
+      return {
+        name: 'WebGL: renderer / driver signals',
+        pass: true,
+        weight: 4,
+        details: { available: false },
+      };
+    }
+
+    const renderer = (info.unmaskedRenderer || info.renderer || '').toLowerCase();
+    const vendor = (info.unmaskedVendor || info.vendor || '').toLowerCase();
+    const combined = `${vendor} ${renderer}`;
+
+    const suspiciousNeedles = ['swiftshader', 'llvmpipe', 'android emulator', 'emulator', 'virtualbox', 'genymotion'];
+    const hits = suspiciousNeedles.filter((n) => combined.includes(n));
+
+    const pass = hits.length === 0;
+    return {
+      name: 'WebGL: renderer / driver signals',
+      pass,
+      weight: 10,
+      details: {
+        hits,
+        vendor: info.vendor,
+        renderer: info.renderer,
+        unmaskedVendor: info.unmaskedVendor,
+        unmaskedRenderer: info.unmaskedRenderer,
+      },
     };
   }
 
@@ -324,6 +393,39 @@ export class App implements OnInit {
   private round(x: number, digits: number): number {
     const p = Math.pow(10, digits);
     return Math.round(x * p) / p;
+  }
+
+  private getWebglInfo(): {
+    available: boolean;
+    vendor?: string;
+    renderer?: string;
+    unmaskedVendor?: string;
+    unmaskedRenderer?: string;
+  } {
+    try {
+      const ua = navigator.userAgent ?? '';
+      if (ua.toLowerCase().includes('jsdom')) return { available: false };
+
+      const canvas = document.createElement('canvas');
+      const gl =
+        (canvas.getContext('webgl2') as any) ||
+        (canvas.getContext('webgl') as any) ||
+        (canvas.getContext('experimental-webgl') as any);
+      if (!gl) return { available: false };
+
+      const vendor = String(gl.getParameter(gl.VENDOR) ?? '');
+      const renderer = String(gl.getParameter(gl.RENDERER) ?? '');
+
+      const debugExt = gl.getExtension('WEBGL_debug_renderer_info');
+      const unmaskedVendor = debugExt ? String(gl.getParameter(debugExt.UNMASKED_VENDOR_WEBGL) ?? '') : undefined;
+      const unmaskedRenderer = debugExt
+        ? String(gl.getParameter(debugExt.UNMASKED_RENDERER_WEBGL) ?? '')
+        : undefined;
+
+      return { available: true, vendor, renderer, unmaskedVendor, unmaskedRenderer };
+    } catch {
+      return { available: false };
+    }
   }
 
   private safeToString(v: any): string {
